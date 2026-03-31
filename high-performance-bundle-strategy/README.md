@@ -1,116 +1,116 @@
-# SPIKE: Reingeniería de Empaquetado — Code Splitting & Dynamic Loading
+# SPIKE: Bundle Re-engineering — Code Splitting & Dynamic Loading
 
-**Proyecto:** Enterprise Platform  
+**Project:** Enterprise Platform  
 **Stack:** React 19 + Vite 7 (Rollup) + Redux Toolkit + React Router DOM v7  
-**Fecha:** Febrero 2026  
-**Autor:** Lead Engineer 
-**Versión:** 1.0
+**Date:** February 2026  
+**Author:** Lead Engineer 
+**Version:** 1.0
 
 ---
 
-## Tabla de Contenidos
+## Table of Contents
 
-1. [Resumen Ejecutivo para Clientes](#1-resumen-ejecutivo-para-clientes)
-2. [Marco Metodológico de la Investigación](#2-marco-metodológico-de-la-investigación)
-3. [Diagnóstico del Estado Actual](#3-diagnóstico-del-estado-actual)
-4. [Herramienta de Análisis Visual](#4-herramienta-de-análisis-visual-bundle-analyzer)
-5. [Guía de Implementación Paso a Paso](#5-guía-de-implementación-paso-a-paso)
-6. [Plantilla de Informe de Resultados](#6-plantilla-de-informe-de-resultados-antesdespués)
+1. [Executive Summary for Clients](#1-executive-summary-for-clients)
+2. [Research Methodological Framework](#2-research-methodological-framework)
+3. [Current State Diagnosis](#3-current-state-diagnosis)
+4. [Visual Analysis Tool (Bundle Analyzer)](#4-visual-analysis-tool-bundle-analyzer)
+5. [Step-by-Step Implementation Guide](#5-step-by-step-implementation-guide)
+6. [Results Report Template (Before/After)](#6-results-report-template-beforeafter)
 
 ---
 
-## 1. Resumen Ejecutivo para Clientes
+## 1. Executive Summary for Clients
 
-### Problema Detectado
+### Problem Detected
 
-La aplicación Enterprise Platform carga **la totalidad de su código fuente** en la primera visita del usuario, independientemente de la página solicitada. Esto significa que un usuario que solo necesita iniciar sesión descarga también el código de reportes, generación de documentos, gráficos, administración de entidades y las otras 50+ pantallas de la aplicación.
+The Enterprise Platform application loads **its entire source code** on the user's first visit, regardless of the requested page. This means a user who only needs to sign in also downloads the code for reports, document generation, charts, entity management, and the other 50+ application screens.
 
-### Impacto Medible
+### Measurable Impact
 
-| Métrica | Estado Actual (Estimado) | Objetivo Post-Optimización |
+| Metric | Current State (Estimated) | Post-Optimization Target |
 |---------|--------------------------|----------------------------|
-| **Bundle principal** | >2 MB (sin comprimir) | <400 KB initial load |
+| **Main bundle** | >2 MB (uncompressed) | <400 KB initial load |
 | **First Contentful Paint** | >3.5s (3G) | <1.8s (3G) |
 | **Time to Interactive** | >5.0s (3G) | <3.0s (3G) |
 | **Lighthouse Performance** | 40–60 | 80–95 |
 
-### ROI Esperado
+### Expected ROI
 
-- **-60% a -75%** en tamaño de carga inicial (bundle principal).
-- **+30 a +50 puntos** en Lighthouse Performance Score.
-- **Mejora directa en SEO:** Google penaliza sitios con FCP > 2.5s y TTI > 3.8s.
-- **Reducción de bounce rate:** Cada 100ms de mejora en carga incrementa la conversión en ~1% (fuente: Deloitte, "Milliseconds Make Millions", 2020).
+- **-60% to -75%** in initial load size (main bundle).
+- **+30 to +50 points** in Lighthouse Performance Score.
+- **Direct SEO improvement:** Google penalizes sites with FCP > 2.5s and TTI > 3.8s.
+- **Bounce rate reduction:** Every 100ms improvement in load time increases conversion by ~1% (source: Deloitte, "Milliseconds Make Millions", 2020).
 
-### Riesgo de No Actuar
+### Risk of Not Acting
 
-Un bundle monolítico en crecimiento implica degradación progresiva. Cada nueva feature aumenta el tiempo de carga para **todas** las páginas, incluyendo la pantalla de login.
+A growing monolithic bundle implies progressive degradation. Each new feature increases load time for **all** pages, including the login screen.
 
 ---
 
-## 2. Marco Metodológico de la Investigación
+## 2. Research Methodological Framework
 
-### 2.1 Tipo de Investigación
+### 2.1 Research Type
 
-**Investigación Cuasi-Experimental con Diseño Pre-Test / Post-Test de un solo grupo.**
+**Quasi-Experimental Research with Pre-Test / Post-Test Single Group Design.**
 
-| Aspecto | Descripción |
+| Aspect | Description |
 |---------|-------------|
-| **Tipo** | Cuasi-Experimental (Applied Research) |
-| **Diseño** | Pre-Test / Post-Test — Single Group |
-| **Variables Independientes** | Técnicas de code splitting, lazy loading, vendor splitting, tree shaking |
-| **Variables Dependientes** | Bundle size (KB), FCP (ms), TTI (ms), Lighthouse Score |
-| **Grupo de Control** | Mediciones baseline del estado actual (pre-intervención) |
-| **Grupo Experimental** | Misma aplicación post-optimización |
-| **Validez Interna** | Se controla el entorno (mismo hardware, misma red simulada con Lighthouse throttling) |
-| **Validez Externa** | Resultados generalizables a SPAs con arquitectura similar |
+| **Type** | Quasi-Experimental (Applied Research) |
+| **Design** | Pre-Test / Post-Test — Single Group |
+| **Independent Variables** | Code splitting techniques, lazy loading, vendor splitting, tree shaking |
+| **Dependent Variables** | Bundle size (KB), FCP (ms), TTI (ms), Lighthouse Score |
+| **Control Group** | Baseline measurements of current state (pre-intervention) |
+| **Experimental Group** | Same application post-optimization |
+| **Internal Validity** | Environment controlled (same hardware, same simulated network with Lighthouse throttling) |
+| **External Validity** | Results generalizable to SPAs with similar architecture |
 
 ### 2.2 Problem Statement
 
-> *La aplicación web Enterprise Platform presenta un bundle monolítico que carga sincrónicamente las 55 escenas (scenes), 30+ componentes compartidos y todas las dependencias de terceros (~15 librerías) en la carga inicial, resultando en un tiempo de First Contentful Paint (FCP) y Time to Interactive (TTI) que exceden los umbrales recomendados por Google Web Vitals (FCP < 1.8s, TTI < 3.8s), impactando negativamente el SEO ranking, la experiencia de usuario y las métricas de conversión del negocio.*
+> *The Enterprise Platform web application presents a monolithic bundle that synchronously loads all 55 scenes, 30+ shared components, and all third-party dependencies (~15 libraries) on initial load, resulting in First Contentful Paint (FCP) and Time to Interactive (TTI) times that exceed Google Web Vitals recommended thresholds (FCP < 1.8s, TTI < 3.8s), negatively impacting SEO ranking, user experience, and business conversion metrics.*
 
-### 2.3 Hipótesis
+### 2.3 Hypotheses
 
-**H₁:** La implementación de code splitting a nivel de rutas, vendor splitting y optimización de tree shaking reducirá el tamaño del bundle inicial en al menos un 60% y mejorará el FCP en al menos un 40%.
+**H₁:** The implementation of route-level code splitting, vendor splitting, and tree shaking optimization will reduce initial bundle size by at least 60% and improve FCP by at least 40%.
 
-**H₀ (Nula):** Las técnicas de optimización de empaquetado no producen una mejora estadísticamente significativa en las métricas de rendimiento.
+**H₀ (Null):** Bundle optimization techniques do not produce a statistically significant improvement in performance metrics.
 
-### 2.4 Justificación Técnica (para Stakeholders)
+### 2.4 Technical Justification (for Stakeholders)
 
-1. **Core Web Vitals como factor de ranking (Google, 2021–presente):** LCP, FID/INP y CLS son señales de ranking. Un bundle excesivo degrada LCP y FID directamente.
-2. **Cost of JavaScript (Addy Osmani, Google Chrome Team, 2023):** Cada KB de JavaScript tiene un costo de parsing + compilación + ejecución. JS es byte-por-byte más costoso que una imagen del mismo tamaño.
-3. **HTTP Archive Web Almanac 2023:** La mediana de JS transferido en páginas móviles es ~500KB. Exceder este umbral coloca a la aplicación en el percentil inferior de rendimiento.
-4. **Deloitte, "Milliseconds Make Millions" (2020):** Mejoras de 100ms en velocidad de carga generan incrementos medibles en engagement y conversión.
+1. **Core Web Vitals as ranking factor (Google, 2021–present):** LCP, FID/INP, and CLS are ranking signals. Excessive bundle directly degrades LCP and FID.
+2. **Cost of JavaScript (Addy Osmani, Google Chrome Team, 2023):** Every KB of JavaScript has a parsing + compilation + execution cost. JS is byte-by-byte more expensive than an image of the same size.
+3. **HTTP Archive Web Almanac 2023:** Median JS transferred on mobile pages is ~500KB. Exceeding this threshold places the application in the lower performance percentile.
+4. **Deloitte, "Milliseconds Make Millions" (2020):** 100ms improvements in load speed generate measurable increases in engagement and conversion.
 
-### 2.5 Metodología de Medición
+### 2.5 Measurement Methodology
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    PROTOCOLO DE MEDICIÓN                     │
+│                    MEASUREMENT PROTOCOL                     │
 ├─────────────────────────────────────────────────────────────┤
-│ 1. Build de producción: `npm run build`                     │
-│ 2. Registro de tamaños: `dist/assets/*.js` (raw + gzip)    │
-│ 3. Lighthouse CI: 5 runs, mediana, modo mobile              │
+│ 1. Production build: `npm run build`                       │
+│ 2. Size registration: `dist/assets/*.js` (raw + gzip)      │
+│ 3. Lighthouse CI: 5 runs, median, mobile mode               │
 │    - Throttling: Simulated Slow 4G                          │
 │    - CPU: 4x slowdown                                       │
-│ 4. Bundle Analyzer: treemap visual pre y post               │
-│ 5. Comparación tabulada con deltas porcentuales             │
+│ 4. Bundle Analyzer: visual treemap pre and post             │
+│ 5. Tabulated comparison with percentage deltas              │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 3. Diagnóstico del Estado Actual
+## 3. Current State Diagnosis
 
-### 3.1 Anti-Patrones Críticos Detectados
+### 3.1 Critical Anti-Patterns Detected
 
-#### 🔴 AP-1: Zero Code Splitting — Bundle Monolítico
+#### 🔴 AP-1: Zero Code Splitting — Monolithic Bundle
 
-**Archivo:** `src/config/routes.js`
+**File:** `@/router/index.tsx`
 
-Todas las **55 views** se importan estáticamente a través del barrel export `src/views/index.jsx`:
+All **55 views** are statically imported through the barrel export `src/views/index.jsx`:
 
 ```javascript
-// src/config/routes.js (líneas 1-58)
+// @/router/index.tsx (lines 1-58)
 import {
   AccountSettings, OrganizationSetup, AccessControl, TeamManagement,
   Partners, PartnerDirectory, StakeholderRegistry, IdentifierManager, EntityCreation,
@@ -127,60 +127,60 @@ import {
 } from "../views";
 ```
 
-**Consecuencia:** Un usuario que visita `/login` descarga el código de las 55 pantallas.
+**Consequence:** A user visiting `/login` downloads code for all 55 screens.
 
-#### 🔴 AP-2: Namespace Imports que Destruyen Tree Shaking
+#### 🔴 AP-2: Namespace Imports that Destroy Tree Shaking
 
-**Archivo:** `src/util/index.js`
+**File:** `src/util/index.js`
 
 ```javascript
-import * as FaIcons from "react-icons/fa";   // ~1,500 iconos FA incluidos
-import * as TbIcons from "react-icons/tb";   // ~4,500 iconos Tabler incluidos
-import * as BiIcons from "react-icons/bi";   // ~800 iconos BoxIcons incluidos
+import * as FaIcons from "react-icons/fa";   // ~1,500 FA icons included
+import * as TbIcons from "react-icons/tb";   // ~4,500 Tabler icons included
+import * as BiIcons from "react-icons/bi";   // ~800 BoxIcons included
 ```
 
-**Consecuencia:** `import *` importa **TODOS** los iconos de cada paquete. Si solo se usan 20 iconos, se están cargando ~6,800 iconos innecesarios. Impacto estimado: **+500KB a +1MB** de JavaScript muerto.
+**Consequence:** `import *` imports **ALL** icons from each package. If only 20 icons are used, ~6,800 unnecessary icons are being loaded. Estimated impact: **+500KB to +1MB** of dead JavaScript.
 
-**Archivos adicionales con `import *`:**
+**Additional files with `import *`:**
 - `src/index.jsx` → `import * as Sentry from "@sentry/react"`
 - `src/App.jsx` → `import * as Sentry from "@sentry/react"`
-- `src/views/layout/components/Aside/components/Menu/index.jsx` → react-icons
+- `src/components/layout/SideNavigation/components/Menu/index.jsx` → react-icons
 - `src/views/layout/components/Dropdown/index.jsx` → react-icons
-- `src/components/ToggleBTN/index.jsx` → Sentry
+- `src/components/ToggleButton/index.jsx` → Sentry
 - `src/components/ErrorElement/index.jsx` → Sentry
 
-#### 🟡 AP-3: Dependencias Pesadas Sin Lazy Loading
+#### 🟡 AP-3: Heavy Dependencies Without Lazy Loading
 
-| Dependencia | Tamaño Estimado (min) | Usado en | Frecuencia de Uso |
+| Dependency | Estimated Size (min) | Used in | Usage Frequency |
 |-------------|----------------------|----------|-------------------|
-| `recharts` | ~500 KB | `analytics/components/Charts/` (1 archivo) | Solo AnalyticsDashboard |
-| `jspdf` + `jspdf-autotable` | ~300 KB | `documentDetail/components/DocumentPDF/` (1 archivo) | Solo al generar PDF |
-| `react-icons` (con `import *`) | ~500-1000 KB | 3 archivos | Menú lateral + Utils |
-| `@sentry/react` | ~250 KB | Entry point | Siempre (pero namespace import) |
-| `react-datepicker` | ~150 KB | Formularios con fecha | Algunas pantallas |
-| `react-select` | ~100 KB | Dropdowns avanzados | Algunas pantallas |
-| `react-table-legacy` | ~80 KB | Tablas legacy | Múltiples pantallas |
-| `core-js` (4 polyfills) | ~80 KB | `index.jsx` | Innecesarios en React 19 |
-| `bulma` | ~200 KB (CSS) | Global | Siempre |
-| `redux-logger` | ~15 KB | Store (solo dev) | Incluido en producción |
+| `recharts` | ~500 KB | `analytics/components/Charts/` (1 file) | Only AnalyticsDashboard |
+| `jspdf` + `jspdf-autotable` | ~300 KB | `documentDetail/components/DocumentPDF/` (1 file) | Only when generating PDF |
+| `react-icons` (with `import *`) | ~500-1000 KB | 3 files | Sidebar menu + Utils |
+| `@sentry/react` | ~250 KB | Entry point | Always (but namespace import) |
+| `react-datepicker` | ~150 KB | Date forms | Some screens |
+| `react-select` | ~100 KB | Advanced dropdowns | Some screens |
+| `react-table-legacy` | ~80 KB | Legacy tables | Multiple screens |
+| `core-js` (4 polyfills) | ~80 KB | `index.jsx` | Unnecessary in React 19 |
+| `bulma` | ~200 KB (CSS) | Global | Always |
+| `redux-logger` | ~15 KB | Store (dev only) | Included in production |
 
-#### 🟡 AP-4: Barrel Exports Sin Lazy Boundaries
+#### 🟡 AP-4: Barrel Exports Without Lazy Boundaries
 
-**Archivos:** `src/views/index.jsx` (55 re-exports) y `src/components/index.jsx` (30 re-exports)
+**Files:** `src/views/index.jsx` (55 re-exports) and `src/components/index.jsx` (30 re-exports)
 
-Los barrel exports consolidan las importaciones pero, combinados con imports estáticos en `routes.js`, fuerzan a Rollup a incluir **todo** en un solo chunk.
+Barrel exports consolidate imports but, combined with static imports in `@/router/index.tsx`, force Rollup to include **everything** in a single chunk.
 
-#### 🟡 AP-5: Sin Vendor Splitting
+#### 🟡 AP-5: No Vendor Splitting
 
-**Archivo:** `vite.config.mjs` — La sección `rollupOptions.output` no configura `manualChunks`, por lo que todas las dependencias de `node_modules` se empaquetan junto con el código de la aplicación.
+**File:** `vite.config.mjs` — The `rollupOptions.output` section doesn't configure `manualChunks`, so all `node_modules` dependencies are packaged together with application code.
 
-### 3.2 Diagrama de Impacto
+### 3.2 Impact Diagram
 
 ```
                     index.html
                         │
                    ┌────▼────┐
-                   │ main.js │ ← MONOLÍTICO (~2-3 MB estimado)
+                   │ main.js │ ← MONOLITHIC (~2-3 MB estimated)
                    └────┬────┘
                         │
         ┌───────────────┼───────────────┐
@@ -200,51 +200,51 @@ Los barrel exports consolidan las importaciones pero, combinados con imports est
 
 ---
 
-## 4. Herramienta de Análisis Visual (Bundle Analyzer)
+## 4. Visual Analysis Tool (Bundle Analyzer)
 
-### 4.1 Herramienta Recomendada: `rollup-plugin-visualizer`
+### 4.1 Recommended Tool: `rollup-plugin-visualizer`
 
-Dado que Vite usa Rollup internamente para el build de producción, la herramienta nativa es **rollup-plugin-visualizer**.
+Since Vite uses Rollup internally for production builds, the native tool is **rollup-plugin-visualizer**.
 
-#### Instalación
+#### Installation
 
 ```bash
 npm install --save-dev rollup-plugin-visualizer
 ```
 
-#### Configuración en `vite.config.mjs`
+#### Configuration in `vite.config.mjs`
 
 ```javascript
 import { visualizer } from "rollup-plugin-visualizer";
 
-// Agregar dentro del array plugins:
+// Add inside the plugins array:
 plugins: [
-  // ...plugins existentes,
+  // ...existing plugins,
   visualizer({
-    filename: "bundle-analysis.html",  // Archivo de salida
-    open: true,                         // Abre automáticamente en el browser
-    gzipSize: true,                     // Muestra tamaño gzip
-    brotliSize: true,                   // Muestra tamaño brotli
-    template: "treemap",                // Opciones: treemap | sunburst | network
+    filename: "bundle-analysis.html",  // Output file
+    open: true,                         // Auto-opens in browser
+    gzipSize: true,                     // Shows gzip size
+    brotliSize: true,                   // Shows brotli size
+    template: "treemap",                // Options: treemap | sunburst | network
   }),
 ],
 ```
 
-#### Ejecución
+#### Execution
 
 ```bash
 npm run build
-# Se genera bundle-analysis.html en la raíz del proyecto
+# bundle-analysis.html generated at project root
 ```
 
-### 4.2 Cómo Interpretar el Treemap
+### 4.2 How to Interpret the Treemap
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                        GUÍA DE LECTURA                          │
+│                        READING GUIDE                          │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
-│  Tamaño del Rectángulo = Tamaño del módulo en el bundle        │
+│  Rectangle Size = Module size in bundle                        │
 │                                                                 │
 │  ┌──────────────────────┬────────────┬──────┐                  │
 │  │                      │            │      │                  │
@@ -256,26 +256,26 @@ npm run build
 │  │                      │  (~250KB)  │      │                  │
 │  ├──────────────────────┼────────────┴──────┤                  │
 │  │   src/scenes/        │  core-js          │                  │
-│  │   (todo el app code) │  (polyfills)      │                  │
+│  │   (all app code)     │  (polyfills)      │                  │
 │  │                      │  ← QUICK WIN #3   │                  │
 │  └──────────────────────┴───────────────────┘                  │
 │                                                                 │
-│  BUSCAR:                                                       │
-│  1. Rectángulos GRANDES en node_modules → candidatos a split   │
-│  2. Módulos que aparecen DUPLICADOS → deduplicación            │
-│  3. Código de app todo junto → falta code splitting            │
-│  4. Librerías usadas en 1 ruta → candidatos a dynamic import  │
+│  LOOK FOR:                                                     │
+│  1. LARGE rectangles in node_modules → split candidates       │
+│  2. Modules appearing DUPLICATED → deduplication              │
+│  3. All app code together → missing code splitting             │
+│  4. Libraries used in 1 route → dynamic import candidates    │
 │                                                                 │
-│  QUICK WINS (por orden de impacto):                            │
-│  #1: react-icons import * → named imports (−500KB a −1MB)      │
-│  #2: recharts + jspdf → dynamic import (−800KB initial)        │
-│  #3: core-js polyfills → eliminar (React 19 no los necesita)  │
-│  #4: 55 scenes → lazy loading por ruta (−60% initial bundle)  │
-│  #5: vendor splitting → cacheo granular de terceros            │
+│  QUICK WINS (by impact order):                                │
+│  #1: react-icons import * → named imports (−500KB to −1MB)    │
+│  #2: recharts + jspdf → dynamic import (−800KB initial)       │
+│  #3: core-js polyfills → remove (React 19 doesn't need them)  │
+│  #4: 55 scenes → lazy loading by route (−60% initial bundle)  │
+│  #5: vendor splitting → granular third-party caching           │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### 4.3 Agregar a `.gitignore`
+### 4.3 Add to `.gitignore`
 
 ```
 bundle-analysis.html
@@ -283,59 +283,59 @@ bundle-analysis.html
 
 ---
 
-## 5. Guía de Implementación Paso a Paso
+## 5. Step-by-Step Implementation Guide
 
-### Fase 1: Quick Wins — Arreglar Tree Shaking (Impacto Inmediato)
+### Phase 1: Quick Wins — Fix Tree Shaking (Immediate Impact)
 
-#### Paso 1.1: Eliminar `import *` de react-icons — Patrón Icon Registry
+#### Step 1.1: Remove `import *` from react-icons — Icon Registry Pattern
 
-##### Contexto del Problema
+##### Problem Context
 
-La función `customIcon(name)` en `src/util/index.js` es un **resolver dinámico** que recibe un string (e.g., `"FaChartLine"`) y busca el componente en los namespace imports. Se usa **182 veces en 48 archivos**. El mismo patrón se replica en `Menu/index.jsx` (con `Icons` y `IconsGo`).
+The `customIcon(name)` function in `src/util/index.js` is a **dynamic resolver** that receives a string (e.g., `"FaChartLine"`) and searches for the component in namespace imports. It's used **182 times across 48 files**. The same pattern is replicated in `Menu/index.jsx` (with `Icons` and `IconsGo`).
 
-Los nombres de iconos vienen como strings desde `src/config/asideOptions.js` y desde JSX hardcodeado en los scenes (e.g., `customIcon("FaRegEdit")`).
+Icon names come as strings from `@/config/navigationOptions.ts` and hardcoded JSX in scenes (e.g., `customIcon("FaRegEdit")`).
 
-**¿Por qué NO se puede simplemente cambiar a named imports?** Porque la función `customIcon` hace lookup dinámico por string: `FaIcons[name]`. Se necesita mantener el mapa string→componente, pero **solo con los iconos realmente usados**.
+**Why can't we just change to named imports?** Because the `customIcon` function does dynamic string lookup: `FaIcons[name]`. We need to maintain the string→component map, but **only with actually used icons**.
 
-##### Solución: Icon Registry (Explicit Map)
+##### Solution: Icon Registry (Explicit Map)
 
-**Paso A:** Auditar todos los nombres de iconos usados en el proyecto:
+**Step A:** Audit all icon names used in the project:
 
 ```bash
-# Extraer todos los nombres de iconos pasados a customIcon
+# Extract all icon names passed to customIcon
 grep -roh "customIcon(['\"][A-Za-z]*['\"])" src/ | sort -u
-# Extraer los icon props en asideOptions.js
-grep -oh 'icon: "[A-Za-z]*"' src/config/asideOptions.js | sort -u
+# Extract icon props in navigationOptions.ts
+grep -oh 'icon: "[A-Za-z]*"' @/config/navigationOptions.ts | sort -u
 ```
 
-**Iconos identificados en la auditoría del proyecto:**
+**Icons identified in project audit:**
 
 ```
-# Desde asideOptions.js (Menu icons):
+# From navigationOptions.ts (Menu icons):
 FaAngleDown, FaBook, FaChartLine, FaClipboardList, FaFileAlt,
 FaFileInvoiceDollar, FaRegCreditCard, FaRegIdBadge, FaRegListAlt,
 FaSyncAlt, FaThList, FaUniversity, FaUserFriends, FaUserPlus,
 FaUsers, FaUserTag, GoLaw
 
-# Desde customIcon() calls en scenes/components:
+# From customIcon() calls in scenes/components:
 FaBan, FaCheck, FaCheckCircle, FaDownload, FaEdit,
 FaExclamationCircle, FaEye, FaFileInvoice, FaHandHoldingUsd,
 FaMinusCircle, FaPlus, FaPlusCircle, FaRegCheckCircle, FaRegEdit,
 FaRegEye, FaRegFileAlt, FaStore, FaStoreAltSlash, FaTimes,
 FaUsersSlash
 
-# Total: ~37 iconos (vs ~6,800 con import *)
-# NOTA: Ejecutar la auditoría con grep antes de implementar
-# para capturar cualquier icono adicional.
+# Total: ~37 icons (vs ~6,800 with import *)
+# NOTE: Run audit with grep before implementing
+# to capture any additional icons.
 ```
 
-**Paso B:** Crear `src/util/iconRegistry.js`:
+**Step B:** Create `src/util/iconRegistry.js`:
 
 ```javascript
 // ── Icon Registry ──
-// Solo importamos los iconos que realmente se usan en la aplicación.
-// Para agregar un nuevo icono: 1) importarlo aquí, 2) agregarlo al mapa.
-// NUNCA usar import * de react-icons.
+// We only import icons actually used in the application.
+// To add a new icon: 1) import it here, 2) add it to the map.
+// NEVER use import * from react-icons.
 
 import {
   FaAngleDown,
@@ -378,7 +378,7 @@ import {
 
 import { GoLaw } from "react-icons/go";
 
-// Agregar aquí los iconos de Tabler y BoxIcons que se usen realmente:
+// Add Tabler and BoxIcons icons that are actually used here:
 // import { TbXxx } from "react-icons/tb";
 // import { BiXxx } from "react-icons/bi";
 
@@ -422,17 +422,17 @@ const ICON_MAP = {
   FaUserTag,
   // GitHub Octicons
   GoLaw,
-  // Tabler Icons (agregar según auditoría)
-  // BoxIcons (agregar según auditoría)
+  // Tabler Icons (add per audit)
+  // BoxIcons (add per audit)
 };
 
 export default ICON_MAP;
 ```
 
-**Paso C:** Refactorizar `customIcon` en `src/util/index.js`:
+**Step C:** Refactor `customIcon` in `src/util/index.js`:
 
 ```javascript
-// ANTES:
+// BEFORE:
 import * as FaIcons from "react-icons/fa";
 import * as TbIcons from "react-icons/tb";
 import * as BiIcons from "react-icons/bi";
@@ -442,7 +442,7 @@ export const customIcon = (name) => {
   return Icon ? <Icon /> : "";
 };
 
-// DESPUÉS:
+// AFTER:
 import ICON_MAP from "./iconRegistry";
 
 export const customIcon = (name) => {
@@ -457,10 +457,10 @@ export const customIcon = (name) => {
 };
 ```
 
-**Paso D:** Refactorizar `Menu/index.jsx`:
+**Step D:** Refactor `Menu/index.jsx`:
 
 ```javascript
-// ANTES:
+// BEFORE:
 import * as Icons from "react-icons/fa";
 import * as IconsGo from "react-icons/go";
 
@@ -470,7 +470,7 @@ customIcon = ({ name }) => {
   // ...
 };
 
-// DESPUÉS:
+// AFTER:
 import ICON_MAP from "@/util/iconRegistry";
 
 customIcon = ({ name }) => {
@@ -484,15 +484,15 @@ customIcon = ({ name }) => {
 };
 ```
 
-##### Beneficio
+##### Benefit
 
-De ~6,800 iconos importados (FA: ~1,500 + Tabler: ~4,500 + BoxIcons: ~800) se pasa a **~30-40 iconos** explícitos.
+From ~6,800 imported icons (FA: ~1,500 + Tabler: ~4,500 + BoxIcons: ~800) to **~30-40 explicit icons**.
 
-**Impacto estimado: −500 KB a −1 MB.**
+**Estimated impact: −500 KB to −1 MB.**
 
-#### Paso 1.2: Eliminar polyfills de core-js innecesarios
+#### Step 1.2: Remove unnecessary core-js polyfills
 
-**Antes** (`src/index.jsx`):
+**Before** (`src/index.jsx`):
 ```javascript
 import "core-js/features/object";
 import "core-js/features/array";
@@ -500,20 +500,20 @@ import "core-js/features/string";
 import "core-js/features/promise";
 ```
 
-**Después:** Eliminar estas líneas. React 19 requiere browsers modernos que ya soportan estas APIs nativamente. Además, el `browserslist` del proyecto excluye IE11 y Opera Mini.
+**After:** Delete these lines. React 19 requires modern browsers that already support these APIs natively. Additionally, the project's `browserslist` excludes IE11 and Opera Mini.
 
-**Impacto estimado: −60 KB a −80 KB.**
+**Estimated impact: −60 KB to −80 KB.**
 
-#### Paso 1.3: Excluir redux-logger de producción
+#### Step 1.3: Exclude redux-logger from production
 
-**Antes** (`src/store/store.js`):
+**Before** (`src/store/store.js`):
 ```javascript
 import { logger } from "redux-logger";
 ```
 
-**Después** — dynamic import condicional:
+**After** — conditional dynamic import:
 ```javascript
-// Eliminar el import estático de arriba y usar dynamic import:
+// Remove static import from above and use dynamic import:
 const store = configureStore({
   reducer: persistedReducer,
   middleware: (getDefaultMiddleware) => {
@@ -528,38 +528,38 @@ const store = configureStore({
   devTools: process.env.NODE_ENV === "production" ? false : { trace: true },
 });
 
-// Logger solo en desarrollo, cargado de forma asíncrona
+// Logger only in development, loaded asynchronously
 if (process.env.NODE_ENV !== "production") {
   import("redux-logger").then(({ createLogger }) => {
     const logger = createLogger();
     store.dispatch = ((next) => (action) => {
-      // Este enfoque no es ideal con RTK; alternativa:
-      // usar redux DevTools Extension que ya está habilitado
+      // This approach is not ideal with RTK; alternative:
+      // use Redux DevTools Extension which is already enabled
     })(store.dispatch);
   });
 }
 ```
 
-> **Alternativa más simple:** Dado que `devTools: { trace: true }` ya está habilitado, considerar **eliminar `redux-logger` completamente** y usar Redux DevTools Extension del browser.
+> **Simpler alternative:** Since `devTools: { trace: true }` is already enabled, consider **removing `redux-logger` completely** and use Redux DevTools Extension from the browser.
 
-**Impacto estimado: −15 KB + eliminación de dependencia.**
+**Estimated impact: −15 KB + dependency removal.**
 
 ---
 
-### Fase 2: Code Splitting por Rutas (Impacto Mayor)
+### Phase 2: Route-Level Code Splitting (Major Impact)
 
-#### Paso 2.1: Crear archivo de lazy imports
+#### Step 2.1: Create lazy imports file
 
-Crear `src/config/lazyRoutes.js`:
+Create `@/router/lazyRoutes.tsx`:
 
 ```javascript
 import { lazy } from "react";
 
-// ── Auth Routes (carga inmediata — son la primera pantalla) ──
-// SignIn, RecoverPassword, ValidateCode, Saml se mantienen estáticos
-// porque son las primeras pantallas que ve el usuario.
+// ── Auth Routes (immediate load — first screen) ──
+// SignIn, RecoverPassword, ValidateCode, Saml remain static
+// because they are the first screens the user sees.
 
-// ── Private Routes (carga dinámica) ──
+// ── Private Routes (dynamic load) ──
 export const AnalyticsDashboard = lazy(() => import("@/views/analyticsDashboard"));
 export const ServiceProviders = lazy(() => import("@/views/serviceProviders"));
 export const BillingDashboard = lazy(() => import("@/views/billingDashboard"));
@@ -611,16 +611,16 @@ export const ComplianceTerms = lazy(() => import("@/views/complianceTerms"));
 export const OperationsManual = lazy(() => import("@/views/operationsManual"));
 ```
 
-#### Paso 2.2: Refactorizar `src/config/routes.js`
+#### Step 2.2: Refactor `@/router/index.tsx`
 
 ```javascript
 import { Suspense } from "react";
 import { Navigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 
-// ── Carga estática: solo lo necesario para el primer render ──
+// ── Static load: only necessary for first render ──
 import { AuthPortal, SecurityRecovery, ValidationPortal, SSOGateway } from "../views/auth";
-// O importar directamente:
+// Or import directly:
 // import AuthPortal from "@/views/auth/authPortal";
 // import SecurityRecovery from "@/views/auth/securityRecovery";
 // import ValidationPortal from "@/views/validationPortal";
@@ -630,7 +630,7 @@ import { ErrorElement, NotFound } from "../components";
 import AuthLayout from "@/views/auth/authLayout";
 import { Loading } from "@/components";
 
-// ── Carga dinámica: todas las rutas privadas ──
+// ── Dynamic load: all private routes ──
 import {
   AnalyticsDashboard, ServiceProviders, BillingDashboard, DocumentDetailView, DocumentBundles,
   ProviderRegistry, ClientOnboarding, ProfileEditor, UserGraph,
@@ -642,9 +642,9 @@ import {
   BillingTermsEditor, ClientGroups, VendorDirectory, EntityRegistry, ComplianceHistory,
   ContractLibrary, TransactionRetry, SSOGateway, ProfileSelection, EmptyState, PolicyDirectory,
   ConsentAgreement, ComplianceTerms, OperationsManual,
-} from "./lazyRoutes";
+} from "./lazyRoutes.tsx";
 
-// ── Wrapper con Suspense ──
+// ── Suspense Wrapper ──
 const Lazy = ({ children }) => (
   <Suspense fallback={<Loading />}>
     {children}
@@ -689,86 +689,86 @@ const routes = (featureFlags) => [
         path: "dashboard",
         element: <Lazy><AnalyticsDashboard key="analyticsDashboard" /></Lazy>,
       },
-      // ... (mismo patrón para todas las rutas privadas)
+      // ... (same pattern for all private routes)
     ],
   },
 ];
 ```
 
-> **Resultado:** Cada ruta se convierte en un chunk separado. Vite/Rollup genera automáticamente archivos como `AnalyticsDashboard.abc123.js`, `BusinessAnalytics.def456.js`, etc.
+> **Result:** Each route becomes a separate chunk. Vite/Rollup automatically generates files like `AnalyticsDashboard.abc123.js`, `BusinessAnalytics.def456.js`, etc.
 
-**Impacto estimado: −60% a −75% del bundle inicial.**
+**Estimated impact: −60% to −75% of initial bundle.**
 
 ---
 
-### Fase 3: Dynamic Import para Dependencias Pesadas
+### Phase 3: Dynamic Import for Heavy Dependencies
 
-#### Paso 3.1: Lazy load de recharts (solo AnalyticsDashboard)
+#### Step 3.1: Lazy load recharts (only AnalyticsDashboard)
 
-**Antes** (`src/views/analyticsDashboard/components/Charts/index.jsx`):
+**Before** (`src/views/analyticsDashboard/components/Charts/index.jsx`):
 ```javascript
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
 ```
 
-**Después** — el `React.lazy` a nivel de ruta ya resuelve esto. Si AnalyticsDashboard es lazy-loaded, recharts se incluye automáticamente en el chunk de AnalyticsDashboard.
+**After** — route-level `React.lazy` already resolves this. If AnalyticsDashboard is lazy-loaded, recharts is automatically included in the AnalyticsDashboard chunk.
 
-Sin embargo, si Dashboard tiene múltiples sub-vistas y los Charts solo se muestran en una de ellas, agregar un lazy más granular:
+However, if Dashboard has multiple sub-views and Charts are only shown in one of them, add more granular lazy loading:
 
 ```javascript
 import { lazy, Suspense } from "react";
 const Charts = lazy(() => import("./components/Charts"));
 
-// En el render:
+// In render:
 {showCharts && (
-  <Suspense fallback={<div>Cargando gráficos...</div>}>
+  <Suspense fallback={<div>Loading charts...</div>}>
     <Charts data={data} />
   </Suspense>
 )}
 ```
 
-#### Paso 3.2: Lazy load de jsPDF (solo al generar PDF)
+#### Step 3.2: Lazy load jsPDF (only when generating PDF)
 
-**Antes** (`src/views/documentDetailView/components/DocumentPDF/index.jsx`):
+**Before** (`src/views/documentDetailView/components/DocumentPDF/index.jsx`):
 ```javascript
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 ```
 
-**Después:**
+**After:**
 ```javascript
 const generatePDF = async (documentData) => {
   const { default: jsPDF } = await import("jspdf");
   await import("jspdf-autotable");
 
   const doc = new jsPDF();
-  // ... generación del PDF
+  // ... PDF generation
   doc.save("document.pdf");
 };
 ```
 
-**Impacto estimado: −300 KB del chunk de DocumentDetailView.**
+**Estimated impact: −300 KB from DocumentDetailView chunk.**
 
 ---
 
-### Fase 4: Vendor Splitting (Cache Optimization)
+### Phase 4: Vendor Splitting (Cache Optimization)
 
-#### Paso 4.1: Configurar `manualChunks` en `vite.config.mjs`
+#### Step 4.1: Configure `manualChunks` in `vite.config.mjs`
 
 ```javascript
-// En rollupOptions.output:
+// In rollupOptions.output:
 output: {
   entryFileNames: "[name].[hash].js",
   chunkFileNames: "[name].[hash].js",
   assetFileNames: "[name].[hash].[ext]",
   manualChunks(id) {
-    // ── Framework Core (cambia raramente) ──
+    // ── Framework Core (rarely changes) ──
     if (id.includes("node_modules/react/") ||
         id.includes("node_modules/react-dom/") ||
         id.includes("node_modules/react-router")) {
       return "vendor-react";
     }
 
-    // ── State Management (cambia raramente) ──
+    // ── State Management (rarely changes) ──
     if (id.includes("node_modules/@reduxjs/") ||
         id.includes("node_modules/react-redux") ||
         id.includes("node_modules/redux") ||
@@ -781,13 +781,13 @@ output: {
       return "vendor-sentry";
     }
 
-    // ── Charting (solo cargado con Dashboard) ──
+    // ── Charting (only loaded with Dashboard) ──
     if (id.includes("node_modules/recharts") ||
         id.includes("node_modules/d3-")) {
       return "vendor-charts";
     }
 
-    // ── PDF Generation (solo cargado on-demand) ──
+    // ── PDF Generation (only loaded on-demand) ──
     if (id.includes("node_modules/jspdf")) {
       return "vendor-pdf";
     }
@@ -813,33 +813,33 @@ output: {
 },
 ```
 
-#### Beneficios del Vendor Splitting
+#### Vendor Splitting Benefits
 
 ```
-Antes:
-  main.abc123.js  →  2.5 MB  (TODO junto, cache invalidado en cada deploy)
+Before:
+  main.abc123.js  →  2.5 MB  (EVERYTHING together, cache invalidated on every deploy)
 
-Después:
-  main.abc123.js          →  ~150 KB  (código de app, cambia frecuentemente)
-  vendor-react.def456.js  →  ~180 KB  (cambia solo al actualizar React)
-  vendor-redux.ghi789.js  →  ~60 KB   (cambia solo al actualizar Redux)
-  vendor-sentry.jkl012.js →  ~250 KB  (cambia solo al actualizar Sentry)
-  vendor-charts.mno345.js →  ~500 KB  (SOLO cargado en /dashboard)
-  vendor-pdf.pqr678.js    →  ~300 KB  (SOLO cargado al generar PDF)
-  vendor-ui.stu901.js     →  ~250 KB  (cargado con primer formulario)
-  vendor-i18n.vwx234.js   →  ~40 KB   (cambia solo al actualizar i18n)
-  vendor-misc.yz5678.js   →  ~80 KB   (resto de dependencias)
+After:
+  main.abc123.js          →  ~150 KB  (app code, changes frequently)
+  vendor-react.def456.js  →  ~180 KB  (changes only when updating React)
+  vendor-redux.ghi789.js  →  ~60 KB   (changes only when updating Redux)
+  vendor-sentry.jkl012.js →  ~250 KB  (changes only when updating Sentry)
+  vendor-charts.mno345.js →  ~500 KB  (ONLY loaded on /dashboard)
+  vendor-pdf.pqr678.js    →  ~300 KB  (ONLY loaded when generating PDF)
+  vendor-ui.stu901.js     →  ~250 KB  (loaded with first form)
+  vendor-i18n.vwx234.js   →  ~40 KB   (changes only when updating i18n)
+  vendor-misc.yz5678.js   →  ~80 KB   (remaining dependencies)
 
-  + 55 route chunks de ~5-30 KB cada uno
+  + 55 route chunks of ~5-30 KB each
 ```
 
-**Resultado:** Los vendor chunks se cachean en el browser y **no se re-descargan** en deploys sucesivos (salvo que cambien las versiones de las librerías).
+**Result:** Vendor chunks are cached in browser and **not re-downloaded** on successive deploys (unless library versions change).
 
 ---
 
-### Fase 5: Optimización del `vite.config.mjs` Completo
+### Phase 5: Complete `vite.config.mjs` Optimization
 
-A continuación el archivo de configuración optimizado con todas las mejoras integradas:
+Below is the optimized configuration file with all improvements integrated:
 
 ```javascript
 import { defineConfig, transformWithEsbuild } from "vite";
@@ -881,7 +881,7 @@ export default defineConfig(() => {
         configFile: "./monitoring.properties",
         urlPrefix: "~/",
       }),
-      // Bundle Analyzer — solo cuando se ejecuta con ANALYZE=true
+      // Bundle Analyzer — only when run with ANALYZE=true
       isAnalyze && visualizer({
         filename: "bundle-analysis.html",
         open: true,
@@ -963,7 +963,7 @@ export default defineConfig(() => {
 });
 ```
 
-#### Script de análisis en `package.json`
+#### Analysis Script in `package.json`
 
 ```json
 {
@@ -973,16 +973,16 @@ export default defineConfig(() => {
 }
 ```
 
-> Si no se usa `cross-env`, en PowerShell: `$env:ANALYZE='true'; vite build`
+> If not using `cross-env`, in PowerShell: `$env:ANALYZE='true'; vite build`
 
 ---
 
-## 6. Plantilla de Informe de Resultados (Antes/Después)
+## 6. Results Report Template (Before/After)
 
-### 6.1 Métricas de Bundle Size
+### 6.1 Bundle Size Metrics
 
-| Chunk | Antes (raw) | Antes (gzip) | Después (raw) | Después (gzip) | Delta |
-|-------|-------------|---------------|----------------|-----------------|-------|
+| Chunk | Before (raw) | Before (gzip) | After (raw) | After (gzip) | Delta |
+|-------|-------------|---------------|-------------|--------------|-------|
 | `main.js` (entry) | ___ KB | ___ KB | ___ KB | ___ KB | __% |
 | `vendor-react.js` | — | — | ___ KB | ___ KB | N/A |
 | `vendor-redux.js` | — | — | ___ KB | ___ KB | N/A |
@@ -996,12 +996,12 @@ export default defineConfig(() => {
 | **TOTAL** | ___ KB | ___ KB | ___ KB | ___ KB | __% |
 | **Initial Load** | ___ KB | ___ KB | ___ KB | ___ KB | **__%** |
 
-> **Initial Load** = `main.js` + `vendor-react` + `vendor-redux` + `vendor-i18n` + `vendor-misc` + ruta activa.
+> **Initial Load** = `main.js` + `vendor-react` + `vendor-redux` + `vendor-i18n` + `vendor-misc` + active route.
 
 ### 6.2 Core Web Vitals (Lighthouse Mobile, Simulated Throttling)
 
-| Métrica | Antes | Después | Delta | Umbral Google |
-|---------|-------|---------|-------|---------------|
+| Metric | Before | After | Delta | Google Threshold |
+|---------|--------|-------|-------|-----------------|
 | **FCP** (First Contentful Paint) | ___ ms | ___ ms | __% | < 1,800 ms ✅ |
 | **LCP** (Largest Contentful Paint) | ___ ms | ___ ms | __% | < 2,500 ms ✅ |
 | **TTI** (Time to Interactive) | ___ ms | ___ ms | __% | < 3,800 ms ✅ |
@@ -1009,79 +1009,79 @@ export default defineConfig(() => {
 | **CLS** (Cumulative Layout Shift) | ___ | ___ | __% | < 0.1 ✅ |
 | **Performance Score** | ___/100 | ___/100 | +___ pts | > 90 ✅ |
 
-### 6.3 Desglose por Ruta (Top 5 más visitadas)
+### 6.3 Route Breakdown (Top 5 Most Visited)
 
-| Ruta | JS cargado (Antes) | JS cargado (Después) | Reducción |
-|------|--------------------|----------------------|-----------|
+| Route | JS Loaded (Before) | JS Loaded (After) | Reduction |
+|-------|---------------------|-------------------|-----------|
 | `/login` | ___ KB | ___ KB | __% |
 | `/dashboard` | ___ KB | ___ KB | __% |
 | `/invoices` | ___ KB | ___ KB | __% |
 | `/reports` | ___ KB | ___ KB | __% |
 | `/invoice-detail` | ___ KB | ___ KB | __% |
 
-### 6.4 Protocolo de Medición
+### 6.4 Measurement Protocol
 
 ```bash
-# 1. Baseline — antes de cambios
+# 1. Baseline — before changes
 npm run build
-# Registrar tamaños de build/assets/*.js
+# Record build/assets/*.js sizes
 
-# 2. Lighthouse — 5 runs, mediana
-# Usar Chrome DevTools > Lighthouse > Mobile > Performance
-# O CLI:
+# 2. Lighthouse — 5 runs, median
+# Use Chrome DevTools > Lighthouse > Mobile > Performance
+# Or CLI:
 npx lighthouse http://localhost:3000/login --output=json --output-path=./lighthouse-before.json
 
-# 3. Aplicar cambios de optimización
+# 3. Apply optimization changes
 
-# 4. Post-optimización
+# 4. Post-optimization
 npm run build
-# Registrar nuevos tamaños
+# Record new sizes
 
 # 5. Lighthouse post
 npx lighthouse http://localhost:3000/login --output=json --output-path=./lighthouse-after.json
 
-# 6. Bundle analysis visual
+# 6. Visual bundle analysis
 npm run analyze
-# Comparar treemaps before/after
+# Compare treemaps before/after
 ```
 
-### 6.5 Resumen de Impacto Esperado
+### 6.5 Expected Impact Summary
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
-│                 PROYECCIÓN DE IMPACTO CONSOLIDADA                │
+│                 CONSOLIDATED IMPACT PROJECTION                │
 ├──────────────────────────────────┬───────────────────────────────┤
-│ Optimización                     │ Reducción Estimada            │
+│ Optimization                     │ Estimated Reduction           │
 ├──────────────────────────────────┼───────────────────────────────┤
-│ react-icons named imports        │ −500 KB a −1 MB               │
-│ Code splitting (55 rutas lazy)   │ −60% a −75% initial bundle    │
-│ Vendor splitting (9 chunks)      │ Cache hit rate: ~90% en redep │
-│ Eliminar core-js polyfills       │ −60 KB a −80 KB               │
-│ jsPDF dynamic import             │ −300 KB del chunk invoice     │
-│ Eliminar redux-logger (prod)     │ −15 KB                        │
+│ react-icons named imports        │ −500 KB to −1 MB               │
+│ Code splitting (55 lazy routes)  │ −60% to −75% initial bundle    │
+│ Vendor splitting (9 chunks)      │ Cache hit rate: ~90% on redep │
+│ Remove core-js polyfills         │ −60 KB to −80 KB               │
+│ jsPDF dynamic import             │ −300 KB from invoice chunk     │
+│ Remove redux-logger (prod)       │ −15 KB                         │
 ├──────────────────────────────────┼───────────────────────────────┤
-│ TOTAL Initial Load               │ De ~2-3 MB → ~300-500 KB      │
-│ FCP Improvement                  │ −40% a −60%                   │
-│ Lighthouse Score                 │ +30 a +50 puntos              │
+│ TOTAL Initial Load               │ From ~2-3 MB → ~300-500 KB     │
+│ FCP Improvement                  │ −40% to −60%                   │
+│ Lighthouse Score                 │ +30 to +50 points              │
 └──────────────────────────────────┴───────────────────────────────┘
 ```
 
 ---
 
-## Anexo A: Orden de Ejecución Recomendado
+## Appendix A: Recommended Execution Order
 
-| Prioridad | Tarea | Esfuerzo | Impacto | Risk |
-|-----------|-------|----------|---------|------|
-| 🔴 P0 | Arreglar `import *` de react-icons | 2-4h | Muy Alto | Bajo |
-| 🔴 P0 | Lazy loading de 55 rutas | 4-6h | Muy Alto | Medio |
-| 🟡 P1 | Vendor splitting en vite.config.mjs | 1-2h | Alto | Bajo |
-| 🟡 P1 | Eliminar core-js polyfills | 30 min | Medio | Bajo |
-| 🟡 P1 | Dynamic import de jsPDF | 1h | Alto | Bajo |
-| 🟢 P2 | Eliminar/condicional redux-logger | 30 min | Bajo | Bajo |
-| 🟢 P2 | Integrar bundle analyzer | 30 min | Diagnóstico | Ninguno |
-| 🟢 P2 | Optimizar imports de Monitoring | 1-2h | Medio | Medio |
+| Priority | Task | Effort | Impact | Risk |
+|----------|------|--------|--------|------|
+| 🔴 P0 | Fix `import *` from react-icons | 2-4h | Very High | Low |
+| 🔴 P0 | Lazy loading of 55 routes | 4-6h | Very High | Medium |
+| 🟡 P1 | Vendor splitting in vite.config.mjs | 1-2h | High | Low |
+| 🟡 P1 | Remove core-js polyfills | 30 min | Medium | Low |
+| 🟡 P1 | Dynamic import of jsPDF | 1h | High | Low |
+| 🟢 P2 | Remove/conditional redux-logger | 30 min | Low | Low |
+| 🟢 P2 | Integrate bundle analyzer | 30 min | Diagnostic | None |
+| 🟢 P2 | Optimize Monitoring imports | 1-2h | Medium | Medium |
 
-## Anexo B: Referencias Bibliográficas
+## Appendix B: Bibliographic References
 
 1. Osmani, A. (2023). *The Cost of JavaScript in 2023*. Google Chrome Team. https://v8.dev/blog/cost-of-javascript-2019
 2. Google. (2024). *Web Vitals*. https://web.dev/vitals/
