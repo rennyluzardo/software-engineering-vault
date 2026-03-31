@@ -1,4 +1,4 @@
-# 🏛️ Frontend Engineering Vault
+# 🏛️ Software Engineering & Architecture Vault
 
 Welcome to my personal technical vault. This repository is a curated collection of **Architectural Decision Records (ADRs)**, **Performance Spikes**, and **Technical Case Studies** derived from my experience leading high-scale enterprise applications.
 
