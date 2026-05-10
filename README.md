@@ -6,6 +6,16 @@ The goal of this vault is to demonstrate not just how I code, but how I think an
 
 ## 🚀 Featured Case Studies
 
+### 🤖 Agentic Systems: Adaptive-POS Generative UI
+
+**Problem:** Traditional POS interfaces become rigid and hard to maintain when UI behavior depends on real-time inventory, cart state, and user intent.
+
+**Solution:** Designed a generative UI architecture with LangGraph orchestration, zero-hallucination contract validation, and InventoryService as the single source of truth.
+
+**Impact:** Enables dynamic, context-aware interfaces while preserving strict backend/frontend contract consistency and operational reliability.
+
+**Reference:** [View Implementation Case Study](./agentic-systems/adaptive-pos/)
+
 ### 🏗️ System Design: Venti SaaS Architecture
 
 **Problem:** Need for a highly scalable, multi-tenant business management platform with strict data isolation.
